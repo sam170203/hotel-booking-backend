@@ -13,23 +13,20 @@ const createRoom = async (req, res) => {
     }
 
     // 2. validate body
+    console.log('Creating room with body:', JSON.stringify(req.body));
     const parsed = createRoomSchema.safeParse(req.body);
     if (!parsed.success) {
       console.log('Room validation failed:', parsed.error);
-      return error(res, 'INVALID_REQUEST', 400);
+      return error(res, { message: 'INVALID_REQUEST', details: parsed.error.errors }, 400);
     }
 
     const { 
-      name, 
-      description, 
-      type, 
+      roomNumber, 
+      roomType, 
       pricePerNight, 
-      maxAdults, 
-      maxChildren, 
-      totalRooms,
-      bedType,
-      size,
-      amenities
+      maxOccupancy,
+      amenities,
+      images
     } = parsed.data;
 
     // 3. check hotel exists & ownership
@@ -57,17 +54,17 @@ const createRoom = async (req, res) => {
         [
           roomId,
           hotelId,
-          name,
-          description || null,
-          type,
+          roomNumber,           // name = roomNumber
+          null,                 // description
+          roomType,             // type = roomType
           pricePerNight,
-          maxAdults,
-          maxChildren,
-          totalRooms,
-          bedType || null,
-          size || null,
+          maxOccupancy,         // max_adults = maxOccupancy
+          0,                    // max_children = 0 (default)
+          1,                    // total_rooms = 1 (default for now)
+          null,                 // bed_type
+          null,                 // size
           JSON.stringify(amenities || []),
-          totalRooms
+          1                     // available_rooms = total_rooms
         ]
       );
     } catch (err) {
@@ -75,28 +72,24 @@ const createRoom = async (req, res) => {
       if (err.code === '23505') {
         return error(res, 'ROOM_ALREADY_EXISTS', 400);
       }
-      throw err;
+      return error(res, { message: 'DATABASE_ERROR', error: err.message }, 500);
     }
 
     // 5. respond
     return success(res, {
       id: roomId,
       hotelId,
-      name,
-      description,
-      type,
+      roomNumber,
+      roomType,
       pricePerNight,
-      maxAdults,
-      maxChildren,
-      totalRooms,
-      bedType,
-      size,
-      amenities: amenities || []
+      maxOccupancy,
+      amenities: amenities || [],
+      images: images || []
     }, 201);
 
   } catch (err) {
-    console.error(err);
-    return error(res, 'INVALID_REQUEST', 400);
+    console.error('Room creation error:', err);
+    return error(res, { message: 'INVALID_REQUEST', error: err.message }, 400);
   }
 };
 

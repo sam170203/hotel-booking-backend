@@ -1,16 +1,12 @@
 const { z } = require('zod');
 
 const createRoomSchema = z.object({
-  name: z.string().min(1),
-  description: z.string().optional(),
-  type: z.string().min(1),
-  pricePerNight: z.number().positive(),
-  maxAdults: z.number().int().min(1),
-  maxChildren: z.number().int().min(0).default(0),
-  totalRooms: z.number().int().positive(),
-  bedType: z.string().optional(),
-  size: z.number().positive().optional(),
-  amenities: z.array(z.string()).optional()
+  roomNumber: z.string().min(1, "Room number is required"),
+  roomType: z.string().min(1, "Room type is required"),
+  pricePerNight: z.coerce.number().positive("Price must be positive"),
+  maxOccupancy: z.coerce.number().int().min(1, "Max occupancy must be at least 1"),
+  amenities: z.array(z.string()).optional().default([]),
+  images: z.array(z.string()).optional().default([])
 });
 
 module.exports = {
