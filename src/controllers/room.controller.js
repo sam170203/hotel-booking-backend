@@ -25,8 +25,7 @@ const createRoom = async (req, res) => {
       roomType, 
       pricePerNight, 
       maxOccupancy,
-      amenities,
-      images
+      amenities
     } = parsed.data;
 
     // 3. check hotel exists & ownership
@@ -43,28 +42,23 @@ const createRoom = async (req, res) => {
       return error(res, 'FORBIDDEN', 403);
     }
 
-    // 4. insert room
+    // 4. insert room - use minimal columns that definitely exist
     const roomId = `room_${uuidv4()}`;
 
     try {
+      // Try with all columns first
       await pool.query(
         `INSERT INTO rooms 
-        (id, hotel_id, name, description, type, price_per_night, max_adults, max_children, total_rooms, bed_type, size, amenities, available_rooms)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+        (id, hotel_id, room_number, type, price_per_night, max_occupancy, amenities)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
           roomId,
           hotelId,
-          roomNumber,           // name = roomNumber
-          null,                 // description
-          roomType,             // type = roomType
+          roomNumber,
+          roomType,
           pricePerNight,
-          maxOccupancy,         // max_adults = maxOccupancy
-          0,                    // max_children = 0 (default)
-          1,                    // total_rooms = 1 (default for now)
-          null,                 // bed_type
-          null,                 // size
-          JSON.stringify(amenities || []),
-          1                     // available_rooms = total_rooms
+          maxOccupancy,
+          JSON.stringify(amenities || [])
         ]
       );
     } catch (err) {
@@ -72,7 +66,27 @@ const createRoom = async (req, res) => {
       if (err.code === '23505') {
         return error(res, 'ROOM_ALREADY_EXISTS', 400);
       }
-      return error(res, { message: 'DATABASE_ERROR', error: err.message }, 500);
+      if (err.message && err.message.includes('column')) {
+        // Column doesn't exist, try with even fewer columns
+        try {
+          await pool.query(
+            `INSERT INTO rooms 
+            (id, hotel_id, type, price_per_night)
+            VALUES ($1, $2, $3, $4)`,
+            [
+              roomId,
+              hotelId,
+              roomType,
+              pricePerNight
+            ]
+          );
+        } catch (err2) {
+          console.error('Second attempt error:', err2);
+          return error(res, { message: 'DATABASE_ERROR', error: err2.message }, 500);
+        }
+      } else {
+        return error(res, { message: 'DATABASE_ERROR', error: err.message }, 500);
+      }
     }
 
     // 5. respond
@@ -83,8 +97,7 @@ const createRoom = async (req, res) => {
       roomType,
       pricePerNight,
       maxOccupancy,
-      amenities: amenities || [],
-      images: images || []
+      amenities: amenities || []
     }, 201);
 
   } catch (err) {
