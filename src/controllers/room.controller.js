@@ -71,18 +71,29 @@ const createRoom = async (req, res) => {
         try {
           await pool.query(
             `INSERT INTO rooms 
-            (id, hotel_id, type, price_per_night)
-            VALUES ($1, $2, $3, $4)`,
+            (id, hotel_id, price_per_night, room_number, room_type, max_occupancy)
+            VALUES ($1, $2, $3, $4, $5, $6)`,
             [
               roomId,
               hotelId,
+              pricePerNight,
+              roomNumber,
               roomType,
-              pricePerNight
+              maxOccupancy
             ]
           );
         } catch (err2) {
           console.error('Second attempt error:', err2);
-          return error(res, { message: 'DATABASE_ERROR', error: err2.message }, 500);
+          // Try absolute minimal
+          try {
+            await pool.query(
+              `INSERT INTO rooms (id, hotel_id) VALUES ($1, $2)`,
+              [roomId, hotelId]
+            );
+          } catch (err3) {
+            console.error('Third attempt error:', err3);
+            return error(res, { message: 'DATABASE_ERROR', error: err3.message }, 500);
+          }
         }
       } else {
         return error(res, { message: 'DATABASE_ERROR', error: err.message }, 500);
