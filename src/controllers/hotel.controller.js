@@ -56,8 +56,8 @@ const createHotel = async (req, res) => {
     }, 201);
 
   } catch (err) {
-    console.error(err);
-    return error(res, 'INVALID_REQUEST', 400);
+    console.error('HOTEL CREATE ERROR:', err);
+    return error(res, { message: 'INVALID_REQUEST', error: err.message, detail: err.detail }, 400);
   }
 };
 
