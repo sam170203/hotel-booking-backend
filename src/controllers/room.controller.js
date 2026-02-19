@@ -15,10 +15,22 @@ const createRoom = async (req, res) => {
     // 2. validate body
     const parsed = createRoomSchema.safeParse(req.body);
     if (!parsed.success) {
+      console.log('Room validation failed:', parsed.error);
       return error(res, 'INVALID_REQUEST', 400);
     }
 
-    const { roomNumber, roomType, pricePerNight, maxOccupancy } = parsed.data;
+    const { 
+      name, 
+      description, 
+      type, 
+      pricePerNight, 
+      maxAdults, 
+      maxChildren, 
+      totalRooms,
+      bedType,
+      size,
+      amenities
+    } = parsed.data;
 
     // 3. check hotel exists & ownership
     const hotelRes = await pool.query(
@@ -40,18 +52,26 @@ const createRoom = async (req, res) => {
     try {
       await pool.query(
         `INSERT INTO rooms 
-        (id, hotel_id, room_number, room_type, price_per_night, max_occupancy)
-        VALUES ($1, $2, $3, $4, $5, $6)`,
+        (id, hotel_id, name, description, type, price_per_night, max_adults, max_children, total_rooms, bed_type, size, amenities, available_rooms)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
         [
           roomId,
           hotelId,
-          roomNumber,
-          roomType,
+          name,
+          description || null,
+          type,
           pricePerNight,
-          maxOccupancy
+          maxAdults,
+          maxChildren,
+          totalRooms,
+          bedType || null,
+          size || null,
+          JSON.stringify(amenities || []),
+          totalRooms
         ]
       );
     } catch (err) {
+      console.error('Database error:', err);
       if (err.code === '23505') {
         return error(res, 'ROOM_ALREADY_EXISTS', 400);
       }
@@ -62,10 +82,16 @@ const createRoom = async (req, res) => {
     return success(res, {
       id: roomId,
       hotelId,
-      roomNumber,
-      roomType,
+      name,
+      description,
+      type,
       pricePerNight,
-      maxOccupancy
+      maxAdults,
+      maxChildren,
+      totalRooms,
+      bedType,
+      size,
+      amenities: amenities || []
     }, 201);
 
   } catch (err) {

@@ -7,16 +7,22 @@ const createHotel = async (req, res) => {
   try {
     // 1. role check
     if (req.user.role !== 'owner') {
+      console.log('ROLE CHECK FAILED:', req.user.role);
       return error(res, 'FORBIDDEN', 403);
     }
 
     // 2. validate input
+    console.log('VALIDATING:', JSON.stringify(req.body));
+    console.log('USER:', JSON.stringify(req.user));
     const parsed = createHotelSchema.safeParse(req.body);
     if (!parsed.success) {
-      return error(res, 'INVALID_REQUEST', 400);
+      console.log('VALIDATION ERROR:', JSON.stringify(parsed.error.errors));
+      console.log('FULL ERROR:', parsed.error);
+      return error(res, { message: 'INVALID_REQUEST', details: parsed.error.errors }, 400);
     }
+    console.log('VALIDATION PASSED');
 
-    const { name, description, city, country, amenities = [] } = parsed.data;
+    const { name, description, address, city, country, starRating, amenities = [], image } = parsed.data;
 
     // 3. insert hotel
     const hotelId = `hotel_${uuidv4()}`;
@@ -69,9 +75,9 @@ const getHotels = async (req, res) => {
         h.amenities,
         h.rating,
         h.total_reviews,
-        MIN(r.price_per_night) AS min_price_per_night
+        COALESCE(MIN(r.price_per_night), 0) AS min_price_per_night
       FROM hotels h
-      JOIN rooms r ON h.id = r.hotel_id
+      LEFT JOIN rooms r ON h.id = r.hotel_id
     `;
 
     const conditions = [];
